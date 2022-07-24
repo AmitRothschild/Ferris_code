@@ -1,4 +1,4 @@
-import zope.interface
+# import zope.interface
 import numpy as np
 import pyvisa
 
