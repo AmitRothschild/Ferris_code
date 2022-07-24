@@ -1,9 +1,10 @@
 # Ferris FMR main
 import sys
-import threading
+from threading import Thread
 import logging
 import time
 
+stage_done = False
 
 # init all relevant devices by constructing the classes and setting the clients
 def pre_test():
@@ -28,7 +29,6 @@ def power_meter_measurement():
 def move_stage(location):
     pass
 
-
 def set_ferris_power_source():
     pass
 
@@ -42,7 +42,9 @@ def init_basic_test_conditions():
 
 
 def stage_sweep_move(speed, end_location):
-    pass
+    print('sweeping stage')
+    global stage_done
+    stage_done = True
 
 
 def organize_run_parameters(run_parameters):
@@ -53,6 +55,7 @@ def main():
     organize_run_parameters(sys.argv[1:])
     pre_test()
     init_basic_test_conditions()
+    sweep_stage1 = Thread(target=stage_sweep_move(1, 1))
     # todo create full run blocks with the relevant loops
 
 
