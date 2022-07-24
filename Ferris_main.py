@@ -56,7 +56,12 @@ def main():
     organize_run_parameters(sys.argv[1:])
     pre_test()
     init_basic_test_conditions()
-    sweep_stage1 = Thread(target=stage_sweep_move(1, 1))
+    # sweep_stage1 = Thread(target=stage_sweep_move(1, 1))
+    with Thorlabs.KinesisMotor("27000000") as stage:
+        for _ in range(10):
+            stage.home()
+            stage.wait_move()  # wait until it's done
+            # stage.move_by(10000)  # initiate a move
     # todo create full run blocks with the relevant loops
 
 
