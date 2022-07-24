@@ -3,6 +3,7 @@ import sys
 from threading import Thread
 import logging
 import time
+from pylablib.devices import Thorlabs
 
 stage_done = False
 
