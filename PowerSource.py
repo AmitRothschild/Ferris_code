@@ -2,6 +2,7 @@
 import numpy as np
 import pyvisa
 
+
 class PowerSourceInterface:
     def __init__(self, num_of_channels, address):
         self.num_of_channels = num_of_channels
