@@ -8,6 +8,7 @@ import numpy as np
 from pylablib.devices import Thorlabs
 from pymeasure import instruments
 from PowerSource import PowerSource
+from RFSource import RFSource
 
 MM_TO_STEPS_RATIO = 34304
 
@@ -18,7 +19,8 @@ def pre_test():
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
     power_source = PowerSource(2, 'GPIB2::10::INSTR')
     power_source.enable_output(False)
-    return lock_in, power_source
+    RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
+    return lock_in, power_source, RF_source
     pass
 
 

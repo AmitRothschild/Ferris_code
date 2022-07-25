@@ -62,3 +62,6 @@ class PowerSource(object):
         else:
             self.instance.write(':OUTP OFF')
             print('turning off the power source')
+
+    def close_client(self):
+        pass
