@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from pylablib.devices import Thorlabs
 from pymeasure import instruments
+from PowerSource import PowerSource
 
 MM_TO_STEPS_RATIO = 34304
 
@@ -15,7 +16,9 @@ MM_TO_STEPS_RATIO = 34304
 def pre_test():
     # force home
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
-    return lock_in
+    power_source = PowerSource(2, 'GPIB2::10::INSTR')
+    power_source.enable_output(False)
+    return lock_in, power_source
     pass
 
 
@@ -49,8 +52,11 @@ def set_rf_source():
     pass
 
 
-def init_basic_test_conditions(stage_location):
+def init_basic_test_conditions(stage_location, power_source):
     move_stage(stage_location)
+    power_source.set_voltage(2, 14.5)
+    power_source.set_current(2, 0.55)
+    power_source.enable_output(True)
 
 
 def lock_in_and_stage_data_thread(end_location, lock_in):
@@ -100,9 +106,9 @@ def location_to_magnetic_field(stage_location):
 
 def main():
     organize_run_parameters(sys.argv[1:])
-    lock_in = pre_test()
+    lock_in, power_source = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
-    init_basic_test_conditions(24)
+    init_basic_test_conditions(24, power_source)
     time.sleep(5)
     stage_sweep_move(0.5, 5)
     lock_in_and_magnetic_field_thread.start()
