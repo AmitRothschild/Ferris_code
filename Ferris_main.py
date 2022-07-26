@@ -16,13 +16,12 @@ MM_TO_STEPS_RATIO = 34304
 
 # init all relevant devices by constructing the classes and setting the clients
 def pre_test():
-    # force home
+    # force home not implemented yet
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
     power_source = PowerSource(2, 'GPIB2::10::INSTR')
     power_source.enable_output(False)
     RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
     return lock_in, power_source, RF_source
-    pass
 
 
 # closing all clients
@@ -55,11 +54,14 @@ def set_rf_source():
     pass
 
 
-def init_basic_test_conditions(stage_location, power_source):
+def init_basic_test_conditions(stage_location, power_source, RF_source, RF_power, RF_init_freq):
     move_stage(stage_location)
     power_source.set_voltage(2, 14.5)
     power_source.set_current(2, 0.55)
     power_source.enable_output(True)
+    RF_source.set_frequency(RF_init_freq)
+    RF_source.set_power(RF_power)
+    RF_source.enable_output(True)
 
 
 def lock_in_and_stage_data_thread(end_location, lock_in):
@@ -74,6 +76,7 @@ def lock_in_and_stage_data_thread(end_location, lock_in):
             time.sleep(0.25)
     print('sweep is done')
     print(measurement_df)
+    return measurement_df
 
 
 def stage_sweep_move(speed, end_location):
@@ -113,15 +116,46 @@ def location_to_magnetic_field(stage_location):
     return a * math.exp(b * stage_location) + c * math.exp(c * d)
 
 
+def post_run(file_save_location, file_name, measured_v_vs_h, measured_graph):
+    file_save_location + '\\' + file_name + 'txt'
+    np.savetxt(file_save_location + '\\' + file_name + 'txt', measured_v_vs_h, fmt='%d')
+    # with open(file_save_location, 'a') as f:
+    #     data_as_str = measured_v_vs_h.to_string(header=True, index=False)
+    #     f.write(data_as_str)
+
+
+def prepare_for_next_run():
+    pass
+
+
+def switch_polarity(power_source, pos):
+    pass
+
+
+def increment_current(power_source, step):
+    pass
+
+
+def create_file_name(cur_freq):
+    pass
+
+
 def main():
-    organize_run_parameters(sys.argv[1:])
-    lock_in, power_source, RF_source = pre_test()
+    file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
+        sys.argv[1:])
+    lock_in, power_source_motor, RF_source = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
-    init_basic_test_conditions(24, power_source)
+    init_basic_test_conditions(24, power_source_motor, RF_source, RF_power,
+                               init_freq)  # parse test conditions from given input
     time.sleep(5)
     while RF_source.get_frequency() <= freq_limit:
+        file_name = create_file_name(RF_source.get_frequency())
+        # if (run_with_current)
         stage_sweep_move(stage_speed, stage_limit)
-        lock_in_and_magnetic_field_thread.start()
+        measured_v_vs_h = lock_in_and_magnetic_field_thread.start()
+        RF_source.set_frequency(RF_source.get_frequency() + freq_step)
+        post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
+        prepare_for_next_run()
 
     # todo create full run blocks with the relevant loops
 
