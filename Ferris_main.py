@@ -18,10 +18,11 @@ MM_TO_STEPS_RATIO = 34304
 def pre_test():
     # force home not implemented yet
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
-    power_source = PowerSource(2, 'GPIB2::10::INSTR')
-    power_source.enable_output(False)
+    power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
+    power_source_motor.enable_output(False)
     RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
-    return lock_in, power_source, RF_source
+    power_source_cur_amp = PowerSource(3, 'GPIB2::1::INSTR')
+    return lock_in, power_source_motor, RF_source, power_source_cur_amp
 
 
 # closing all clients
@@ -141,9 +142,9 @@ def create_file_name(cur_freq):
 
 
 def main():
-    file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
-        sys.argv[1:])
-    lock_in, power_source_motor, RF_source = pre_test()
+    # file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
+    #     sys.argv[1:])
+    lock_in, power_source_motor, RF_source, power_source_current_amp = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
     init_basic_test_conditions(24, power_source_motor, RF_source, RF_power,
                                init_freq)  # parse test conditions from given input
