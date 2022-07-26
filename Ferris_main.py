@@ -9,6 +9,7 @@ from pylablib.devices import Thorlabs
 from pymeasure import instruments
 from PowerSource import PowerSource
 from RFSource import RFSource
+import math
 
 MM_TO_STEPS_RATIO = 34304
 
@@ -100,20 +101,27 @@ def organize_run_parameters(run_parameters):
 def location_to_magnetic_field(stage_location):
     """
     converts the stage location to magnetic field
+    the fit is two exponents: a*exp(b*x) + c*exp(d*x)
+    a = 411.9, b = -0.3221, c = 63.88, d = -0.09755
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    pass
+    a = 4119
+    b = -0.3221
+    c = 6388
+    d = -0.09755
+    return a * math.exp(b * stage_location) + c * math.exp(c * d)
 
 
 def main():
     organize_run_parameters(sys.argv[1:])
-    lock_in, power_source = pre_test()
+    lock_in, power_source, RF_source = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
     init_basic_test_conditions(24, power_source)
     time.sleep(5)
-    stage_sweep_move(0.5, 5)
-    lock_in_and_magnetic_field_thread.start()
+    while RF_source.get_frequency() <= freq_limit:
+        stage_sweep_move(stage_speed, stage_limit)
+        lock_in_and_magnetic_field_thread.start()
 
     # todo create full run blocks with the relevant loops
 
