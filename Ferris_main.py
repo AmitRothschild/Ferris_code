@@ -68,6 +68,16 @@ def set_rf_source():
 
 
 def init_basic_test_conditions(stage_location, power_source, RF_source, power_source_rf_amp, RF_power, RF_init_freq):
+    """
+    create all clients and make sure that test conditions are correct
+    :param stage_location: initial stage location
+    :param power_source:  2 channel power source for the motor object
+    :param RF_source: rf source object
+    :param power_source_rf_amp: 3 channel power source for rf amp and current driven tests
+    :param RF_power: rf power in dBm
+    :param RF_init_freq: initial rf frequency for th run
+    :return: none
+    """
     move_stage(stage_location)
     power_source.set_voltage(2, 14.5)
     power_source.set_current(2, 0.55)
@@ -90,7 +100,7 @@ def lock_in_and_stage_data_thread(end_location, lock_in):
             measurement_df.loc[measurement_df.shape[0]] = [stage.get_position() / MM_TO_STEPS_RATIO,
                                                            lock_in_measurement[0], lock_in_measurement[1],
                                                            lock_in_measurement[2], lock_in_measurement[3]]
-            time.sleep(0.25)
+            time.sleep(0.05)
     print('sweep is done')
     print(measurement_df)
     return measurement_df
@@ -123,8 +133,6 @@ def organize_run_parameters(run_parameters):
     speed = run_parameters[5]
     stage_limit = run_parameters[6]
     return file_location, RF_power, init_freq, freq_limit, freq_step, speed, stage_limit
-
-
 
 
 def location_to_magnetic_field(stage_location):
@@ -175,7 +183,7 @@ def main():
     lock_in, power_source_motor, RF_source, power_source_current_amp = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
     init_basic_test_conditions(24, power_source_motor, RF_source, power_source_current_amp, RF_power,
-                               init_freq)  # parse test conditions from given input
+                               init_freq)
     time.sleep(5)
     while RF_source.get_frequency() <= freq_limit:
         # if (run_with_current)
@@ -185,7 +193,7 @@ def main():
         RF_source.set_frequency(RF_source.get_frequency() + freq_step)
         # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
         prepare_for_next_run()
-
+    post_test()
     # todo create full run blocks with the relevant loops
 
 
