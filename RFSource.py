@@ -2,7 +2,7 @@ import pyvisa
 from scipy.signal import freqs
 
 
-class RFSource(object):
+class RFSource:
     def __init__(self, address):
         self.address = address
         self.instance = self.create_client(address)

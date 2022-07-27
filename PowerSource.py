@@ -9,7 +9,7 @@ def parse_channel(channel):
     return dict_channels[channel]
 
 
-class PowerSource(object):
+class PowerSource:
     def __init__(self, num_of_channels, address):
         self.num_of_channels = num_of_channels
         self.address = address

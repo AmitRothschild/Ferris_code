@@ -9,6 +9,9 @@ from pylablib.devices import Thorlabs
 from pymeasure import instruments
 from PowerSource import PowerSource
 from RFSource import RFSource
+from PowerSourceKeithley import PowerSourceKeithley
+# import PowerSourceKeithley
+
 import math
 
 MM_TO_STEPS_RATIO = 34304
@@ -21,7 +24,8 @@ def pre_test():
     power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
     power_source_motor.enable_output(False)
     RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
-    power_source_cur_amp = PowerSource(3, 'GPIB2::1::INSTR')
+    power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
+    power_source_cur_amp.enable_output(False)
     return lock_in, power_source_motor, RF_source, power_source_cur_amp
 
 
@@ -55,11 +59,15 @@ def set_rf_source():
     pass
 
 
-def init_basic_test_conditions(stage_location, power_source, RF_source, RF_power, RF_init_freq):
+def init_basic_test_conditions(stage_location, power_source, RF_source, power_source_rf_amp, RF_power, RF_init_freq):
     move_stage(stage_location)
     power_source.set_voltage(2, 14.5)
     power_source.set_current(2, 0.55)
     power_source.enable_output(True)
+    power_source_rf_amp.set_voltage(1, 12)
+    power_source_rf_amp.set_current(1, 0.7)
+    power_source_rf_amp.enable_single_channel(1)
+    time.sleep(3)
     RF_source.set_frequency(RF_init_freq)
     RF_source.set_power(RF_power)
     RF_source.enable_output(True)
@@ -130,11 +138,14 @@ def prepare_for_next_run():
 
 
 def switch_polarity(power_source, pos):
-    pass
+    if pos:
+        power_source.set_voltage(2, 5)
+    else:
+        power_source.set_voltage(2, 0)
 
 
-def increment_current(power_source, step):
-    pass
+def increment_current(power_source, cur_val, step):
+    power_source.set_current(3, cur_val + step)
 
 
 def create_file_name(cur_freq):
@@ -146,7 +157,7 @@ def main():
     #     sys.argv[1:])
     lock_in, power_source_motor, RF_source, power_source_current_amp = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
-    init_basic_test_conditions(24, power_source_motor, RF_source, RF_power,
+    init_basic_test_conditions(24, power_source_motor, RF_source, power_source_current_amp, RF_power,
                                init_freq)  # parse test conditions from given input
     time.sleep(5)
     while RF_source.get_frequency() <= freq_limit:
