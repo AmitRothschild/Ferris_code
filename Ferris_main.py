@@ -126,12 +126,12 @@ def organize_run_parameters(run_parameters):
     :return: organized input parameters
     """
     file_location = run_parameters[0]
-    RF_power = run_parameters[1]
-    init_freq = run_parameters[2]
-    freq_limit = run_parameters[3]
-    freq_step = run_parameters[4]
-    speed = run_parameters[5]
-    stage_limit = run_parameters[6]
+    RF_power = float(run_parameters[1])
+    init_freq = float(run_parameters[2])
+    freq_limit = float(run_parameters[3])
+    freq_step = float(run_parameters[4])
+    speed = float(run_parameters[5])
+    stage_limit = float(run_parameters[6])
     return file_location, RF_power, init_freq, freq_limit, freq_step, speed, stage_limit
 
 
