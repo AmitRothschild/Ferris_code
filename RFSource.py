@@ -41,6 +41,7 @@ class RFSource:
 
     def create_client(self, address):
         rm = pyvisa.ResourceManager()
+        print('initialized device')
         return rm.open_resource(address)
 
     def close_client(self):

@@ -10,7 +10,6 @@ from pymeasure import instruments
 from PowerSource import PowerSource
 from RFSource import RFSource
 from PowerSourceKeithley import PowerSourceKeithley
-# import PowerSourceKeithley
 
 import math
 
@@ -19,8 +18,17 @@ MM_TO_STEPS_RATIO = 34304
 
 # init all relevant devices by constructing the classes and setting the clients
 def pre_test():
-    # force home not implemented yet
+    """
+    initialize all devices and home the stage
+    :return: devices as objects
+    """
+    with Thorlabs.KinesisMotor("27004822") as stage:
+        stage.home(force=True)
+        print('started homing')
+        stage.wait_for_home()
+        print('homing complete')
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
+    print('initialized lock in amp')
     power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
     power_source_motor.enable_output(False)
     RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
@@ -107,7 +115,16 @@ def organize_run_parameters(run_parameters):
     :param run_parameters: list of input parameters
     :return: organized input parameters
     """
-    pass
+    file_location = run_parameters[0]
+    RF_power = run_parameters[1]
+    init_freq = run_parameters[2]
+    freq_limit = run_parameters[3]
+    freq_step = run_parameters[4]
+    speed = run_parameters[5]
+    stage_limit = run_parameters[6]
+    return file_location, RF_power, init_freq, freq_limit, freq_step, speed, stage_limit
+
+
 
 
 def location_to_magnetic_field(stage_location):
@@ -148,25 +165,25 @@ def increment_current(power_source, cur_val, step):
     power_source.set_current(3, cur_val + step)
 
 
-def create_file_name(cur_freq):
+def create_file_name(cur_freq, app_cur, pos):
     pass
 
 
 def main():
-    # file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
-    #     sys.argv[1:])
+    file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
+        sys.argv[1:])
     lock_in, power_source_motor, RF_source, power_source_current_amp = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
     init_basic_test_conditions(24, power_source_motor, RF_source, power_source_current_amp, RF_power,
                                init_freq)  # parse test conditions from given input
     time.sleep(5)
     while RF_source.get_frequency() <= freq_limit:
-        file_name = create_file_name(RF_source.get_frequency())
         # if (run_with_current)
+        # file_name = create_file_name(RF_source.get_frequency(), 0, 'pos')
         stage_sweep_move(stage_speed, stage_limit)
         measured_v_vs_h = lock_in_and_magnetic_field_thread.start()
         RF_source.set_frequency(RF_source.get_frequency() + freq_step)
-        post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
+        # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
         prepare_for_next_run()
 
     # todo create full run blocks with the relevant loops

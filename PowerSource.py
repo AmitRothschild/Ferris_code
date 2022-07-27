@@ -17,6 +17,7 @@ class PowerSource:
 
     def create_client(self, address):
         rm = pyvisa.ResourceManager()
+        print('initialized device')
         return rm.open_resource(address)
 
     def set_voltage(self, channel_number, voltage_value):
@@ -46,15 +47,6 @@ class PowerSource:
     def get_identity(self):
         return self.instance.query('*IDN?').strip('\n')
 
-    # def enable_output(self, channel, on):
-    #     ch = parse_channel(channel)
-    #     if on:
-    #         self.instance.write(':OUTP ' + ch + ',ON')
-    #         print('turning on the power source')
-    #     else:
-    #         self.instance.write(':OUTP ' + ch + ',OFF')
-    #         print('turning off the power source')
-
     def enable_output(self, on):
         if on:
             self.instance.write(':OUTP ON')
@@ -64,4 +56,4 @@ class PowerSource:
             print('turning off the power source')
 
     def close_client(self):
-        pass
+        self.instance.close()
