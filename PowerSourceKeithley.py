@@ -7,16 +7,21 @@ def parse_channel(channel):
     return dict_channels[channel]
 
 
+def check_if_valid_channel(channel_number, num_of_channels):
+    if channel_number == 0 or channel_number >= num_of_channels:
+        print('invalid channel')
+        return False
+    return True
+
+
 class PowerSourceKeithley(PowerSource):
 
     def __init__(self, num_of_channels, address):
         super(PowerSourceKeithley, self).__init__(num_of_channels, address)
 
-
-    # overide those functions
+    # override those functions
     def set_voltage(self, channel_number, voltage_value):
-        if channel_number == 0 or channel_number > self.get_num_of_channels():
-            print('invalid channel')
+        if not check_if_valid_channel(channel_number, self.get_num_of_channels()):
             return
         print('Setting the voltage of channel ', channel_number, ' to ', voltage_value)
         channel = parse_channel(channel_number)
