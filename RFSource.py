@@ -16,7 +16,7 @@ class RFSource:
         print('setting output power to ', power, ' dBm')
 
     def get_frequency(self):
-        return self.instance.query('FREQ?')
+        return float(self.instance.query('FREQ?').strip('\n'))/10**9
 
     def get_power(self):
         return self.instance.query('POW?')

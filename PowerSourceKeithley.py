@@ -1,4 +1,6 @@
 import PowerSource
+import pyvisa
+
 
 
 def parse_channel(channel):
@@ -34,6 +36,14 @@ class PowerSourceKeithley(PowerSource.PowerSource):
         channel = parse_channel(channel_number)
         self.instance.write('INST:NSEL ', channel)
         self.instance.write('CURR ', str(current_value))
+
+    def create_client(self, address):
+        rm = pyvisa.ResourceManager()
+        print('initialized device')
+        inst = rm.open_resource(address)
+        inst.write('SYSTem:REMote')
+        return rm.open_resource(address)
+
 
     def get_voltage(self, channel_number):
         if not check_if_valid_channel(channel_number, self.get_num_of_channels()):
