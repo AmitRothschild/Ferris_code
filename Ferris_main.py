@@ -16,12 +16,17 @@ import math
 MM_TO_STEPS_RATIO = 34304
 
 
-# init all relevant devices by constructing the classes and setting the clients
 def pre_test():
     """
     initialize all devices and home the stage
     :return: devices as objects
     """
+    power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
+    power_source_motor.enable_output(False)
+    RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
+    power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
+    power_source_cur_amp.enable_output(False)
+    time.sleep(5)
     with Thorlabs.KinesisMotor("27004822") as stage:
         stage.home(force=True)
         print('started homing')
@@ -29,11 +34,7 @@ def pre_test():
         print('homing complete')
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
     print('initialized lock in amp')
-    power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
-    power_source_motor.enable_output(False)
-    RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
-    power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
-    power_source_cur_amp.enable_output(False)
+
     return lock_in, power_source_motor, RF_source, power_source_cur_amp
 
 
@@ -63,19 +64,19 @@ def set_ferris_power_source():
     pass
 
 
-def set_rf_source():
+def set_rf_source(rf_source, rf_freq, rf_power):
     pass
 
 
-def init_basic_test_conditions(stage_location, power_source, RF_source, power_source_rf_amp, RF_power, RF_init_freq):
+def init_basic_test_conditions(stage_location, power_source, rf_source, power_source_rf_amp, rf_power, rf_init_freq):
     """
     create all clients and make sure that test conditions are correct
     :param stage_location: initial stage location
     :param power_source:  2 channel power source for the motor object
-    :param RF_source: rf source object
+    :param rf_source: rf source object
     :param power_source_rf_amp: 3 channel power source for rf amp and current driven tests
-    :param RF_power: rf power in dBm
-    :param RF_init_freq: initial rf frequency for th run
+    :param rf_power: rf power in dBm
+    :param rf_init_freq: initial rf frequency for th run
     :return: none
     """
     move_stage(stage_location)
@@ -86,9 +87,9 @@ def init_basic_test_conditions(stage_location, power_source, RF_source, power_so
     power_source_rf_amp.set_current(1, 0.7)
     power_source_rf_amp.enable_single_channel(1)
     time.sleep(3)
-    RF_source.set_frequency(RF_init_freq)
-    RF_source.set_power(RF_power)
-    RF_source.enable_output(True)
+    rf_source.set_frequency(rf_init_freq)
+    rf_source.set_power(rf_power)
+    rf_source.enable_output(True)
 
 
 def lock_in_and_stage_data_thread(end_location, lock_in):
@@ -126,13 +127,13 @@ def organize_run_parameters(run_parameters):
     :return: organized input parameters
     """
     file_location = run_parameters[0]
-    RF_power = float(run_parameters[1])
+    rf_power = float(run_parameters[1])
     init_freq = float(run_parameters[2])
     freq_limit = float(run_parameters[3])
     freq_step = float(run_parameters[4])
     speed = float(run_parameters[5])
     stage_limit = float(run_parameters[6])
-    return file_location, RF_power, init_freq, freq_limit, freq_step, speed, stage_limit
+    return file_location, rf_power, init_freq, freq_limit, freq_step, speed, stage_limit
 
 
 def location_to_magnetic_field(stage_location):
@@ -178,19 +179,19 @@ def create_file_name(cur_freq, app_cur, pos):
 
 
 def main():
-    file_save_location, RF_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
+    file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
         sys.argv[1:])
-    lock_in, power_source_motor, RF_source, power_source_current_amp = pre_test()
+    lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
     lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread, args=[5, lock_in])
-    init_basic_test_conditions(24, power_source_motor, RF_source, power_source_current_amp, RF_power,
+    init_basic_test_conditions(24, power_source_motor, rf_source, power_source_current_amp, rf_power,
                                init_freq)
     time.sleep(5)
-    while RF_source.get_frequency() <= freq_limit:
+    while rf_source.get_frequency() <= freq_limit:
         # if (run_with_current)
-        # file_name = create_file_name(RF_source.get_frequency(), 0, 'pos')
+        # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
         stage_sweep_move(stage_speed, stage_limit)
         measured_v_vs_h = lock_in_and_magnetic_field_thread.start()
-        RF_source.set_frequency(RF_source.get_frequency() + freq_step)
+        rf_source.set_frequency(rf_source.get_frequency() + freq_step)
         # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
         prepare_for_next_run()
     post_test()
