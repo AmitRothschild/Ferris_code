@@ -52,9 +52,12 @@ def post_test(power_source_motor, power_source_current_amp, rf_source):
     :param rf_source:rf source object
     """
     power_source_motor.enable_output(False)
+    power_source_motor.close_client()
     rf_source.enable_output(False)
+    rf_source.close_client()
     time.sleep(5)
     power_source_current_amp.enable_output(False)
+    power_source_current_amp.close_client()
 
 
 def power_meter_measurement():
