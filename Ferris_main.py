@@ -13,6 +13,7 @@ from PowerSourceKeithley import PowerSourceKeithley
 import math
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import csv
 
 MM_TO_STEPS_RATIO = 34304
 
@@ -71,9 +72,9 @@ def set_rf_source(rf_source, rf_freq, rf_power):
     pass
 
 
-def live_update_fig(h_field, lock_in_meas):
-    plt.cla()
-    plt.plot(h_field, lock_in_meas)
+# def live_update_fig(i):
+#     plt.cla()
+#     plt.plot(h_field, lock_in_meas)
 
 
 def init_basic_test_conditions(stage_location, power_source, rf_source, power_source_rf_amp, rf_power, rf_init_freq):
@@ -101,6 +102,11 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, power_so
 
 
 def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, y, theta):
+    fieldnames = ["magnetic filed", "R"]
+    with open('temp file.csv', 'w', encoding='UTF8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        # todo create the editing of the temp file
     # measurement_df = pd.DataFrame(columns=['location', 'R', 'X', 'Y', 'Theta'])  # , 'H', 'R', 'X', 'Y', 'Theta'])
     with Thorlabs.KinesisMotor("27004822") as stage:
         while stage.get_position() / MM_TO_STEPS_RATIO > end_location:
@@ -206,7 +212,7 @@ def main():
         # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
         stage_sweep_move(stage_speed, stage_limit)
         lock_in_and_magnetic_field_thread.start()
-        # live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=1000)
+        live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250)
         lock_in_and_magnetic_field_thread.join()
         # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
         prepare_for_next_run(rf_source, freq_step)
