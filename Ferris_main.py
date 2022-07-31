@@ -1,4 +1,5 @@
 # Ferris FMR main
+import pathlib
 import sys
 from threading import Thread
 import logging
@@ -35,16 +36,25 @@ def pre_test():
         stage.wait_for_home()
         print('homing complete')
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
+    for i in range(10):
+        lock_in.snap('R', 'X', 'Y', 'Theta')
+        time.sleep(0.1)
     print('initialized lock in amp')
-
     return lock_in, power_source_motor, RF_source, power_source_cur_amp
 
 
 # closing all clients
 def post_test(power_source_motor, power_source_current_amp, rf_source):
+    """
+    turn off all outputs and close clients
+    :param power_source_motor: power source object
+    :param power_source_current_amp: power source object
+    :param rf_source:rf source object
+    """
     power_source_motor.enable_output(False)
-    power_source_current_amp.enable_output(False)
     rf_source.enable_output(False)
+    time.sleep(5)
+    power_source_current_amp.enable_output(False)
 
 
 def power_meter_measurement():
@@ -72,9 +82,20 @@ def set_rf_source(rf_source, rf_freq, rf_power):
     pass
 
 
-# def live_update_fig(i):
-#     plt.cla()
-#     plt.plot(h_field, lock_in_meas)
+def live_update_fig(i, path):
+    """
+    function that is used for the live update of the measured data for now it plots R vs magnetic field
+    :param i: iterator
+    :param path:path for the data file
+    :return:
+    """
+    with open(path, newline='') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+        magnetic_field = [float(item[0]) for item in data]
+        r = [float(item[1]) for item in data]
+    plt.cla()
+    plt.plot(magnetic_field, r)
 
 
 def init_basic_test_conditions(stage_location, power_source, rf_source, power_source_rf_amp, rf_power, rf_init_freq):
@@ -102,15 +123,22 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, power_so
 
 
 def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, y, theta):
+    """
+    thread for the lock in data acquisition, data is passed as reference - must be mutable data type
+    :param end_location: stage end location
+    :param lock_in: lock in object
+    :param location: reference to the location lst
+    :param field: reference to the magnetic field list
+    :param r: reference to the r list
+    :param x: reference to the x list
+    :param y: reference to the y list
+    :param theta: reference to the theta list
+    """
     fieldnames = ["magnetic filed", "R"]
-    with open('temp file.csv', 'w', encoding='UTF8', newline='') as f:
+    with open('temp data.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        # todo create the editing of the temp file
-    # measurement_df = pd.DataFrame(columns=['location', 'R', 'X', 'Y', 'Theta'])  # , 'H', 'R', 'X', 'Y', 'Theta'])
     with Thorlabs.KinesisMotor("27004822") as stage:
         while stage.get_position() / MM_TO_STEPS_RATIO > end_location:
-            # print('stage current location is ', stage.get_position() / MM_TO_STEPS_RATIO, " mm")
             lock_in_measurement = lock_in.snap('R', 'X', 'Y', 'Theta')
             location.append(stage.get_position() / MM_TO_STEPS_RATIO)
             field.append(location_to_magnetic_field(stage.get_position() / MM_TO_STEPS_RATIO))
@@ -118,10 +146,12 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
             x.append(lock_in_measurement[1])
             y.append(lock_in_measurement[2])
             theta.append(lock_in_measurement[3])
-            # print('lock in measurements: ', lock_in_measurement)
+            info = {'magnetic filed': field[-1], 'R': r[-1]}
+            with open('temp data.csv', 'a', encoding='UTF8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writerow(info)
             time.sleep(0.05)
     print('sweep is done')
-    print(location[-1], r[-1], x[-1], y[-1], theta[-1])
 
 
 def stage_sweep_move(speed, end_location):
@@ -196,7 +226,8 @@ def create_file_name(cur_freq, app_cur, pos):
 
 
 def main():
-    plt.show()
+    plt.figure()
+    path = str(pathlib.Path(__file__).parent.resolve()) + '\\temp data.csv'
     file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
         sys.argv[1:])
     lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
@@ -212,7 +243,10 @@ def main():
         # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
         stage_sweep_move(stage_speed, stage_limit)
         lock_in_and_magnetic_field_thread.start()
-        live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250)
+        live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250, fargs=(path,))
+        plt.show()
+        plt.savefig('test_fig.png')
+        plt.close()
         lock_in_and_magnetic_field_thread.join()
         # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
         prepare_for_next_run(rf_source, freq_step)
