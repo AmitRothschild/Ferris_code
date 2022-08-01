@@ -1,11 +1,11 @@
 # Ferris FMR main
-import pathlib
+# import pathlib
 import sys
 from threading import Thread
-import logging
+# import logging
 import time
-import pandas as pd
-import numpy as np
+# import pandas as pd
+# import numpy as np
 from pylablib.devices import Thorlabs
 from pymeasure import instruments
 from PowerSource import PowerSource
@@ -13,7 +13,7 @@ from RFSource import RFSource
 from PowerSourceKeithley import PowerSourceKeithley
 import math
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+# from matplotlib.animation import FuncAnimation
 import csv
 
 MM_TO_STEPS_RATIO = 34304
@@ -26,7 +26,7 @@ def pre_test():
     """
     power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
     power_source_motor.enable_output(False)
-    RF_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
+    rf_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
     power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
     power_source_cur_amp.enable_output(False)
     time.sleep(10)
@@ -40,7 +40,7 @@ def pre_test():
         lock_in.snap('R', 'X', 'Y', 'Theta')
         time.sleep(0.1)
     print('initialized lock in amp')
-    return lock_in, power_source_motor, RF_source, power_source_cur_amp
+    return lock_in, power_source_motor, rf_source, power_source_cur_amp
 
 
 # closing all clients
@@ -77,28 +77,20 @@ def move_stage(location):
         stage.wait_move()
 
 
-def set_ferris_power_source():
-    pass
-
-
-def set_rf_source(rf_source, rf_freq, rf_power):
-    pass
-
-
-def live_update_fig(i, path):
-    """
-    function that is used for the live update of the measured data for now it plots R vs magnetic field
-    :param i: iterator
-    :param path:path for the data file
-    :return:
-    """
-    with open(path, newline='') as f:
-        reader = csv.reader(f)
-        data = list(reader)
-        magnetic_field = [float(item[0]) for item in data]
-        r = [float(item[1]) for item in data]
-    plt.cla()
-    plt.plot(magnetic_field, r)
+# def live_update_fig(i, path):
+#     """
+#     function that is used for the live update of the measured data for now it plots R vs magnetic field
+#     :param i: iterator
+#     :param path:path for the data file
+#     :return:
+#     """
+#     with open(path, newline='') as f:
+#         reader = csv.reader(f)
+#         data = list(reader)
+#         magnetic_field = [float(item[0]) for item in data]
+#         r = [float(item[1]) for item in data]
+#     plt.cla()
+#     plt.plot(magnetic_field, r)
 
 
 def init_basic_test_conditions(stage_location, power_source, rf_source, power_source_rf_amp, rf_power, rf_init_freq):
@@ -118,7 +110,10 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, power_so
     power_source.enable_output(True)
     power_source_rf_amp.set_voltage(1, 12)
     power_source_rf_amp.set_current(1, 0.7)
+    power_source_rf_amp.set_voltage(2, 5)
+    power_source_rf_amp.set_current(2, 0.03)
     power_source_rf_amp.enable_single_channel(1, True)
+    power_source_rf_amp.enable_single_channel(2, True)
     time.sleep(3)
     rf_source.set_frequency(rf_init_freq)
     rf_source.set_power(rf_power)
@@ -232,29 +227,37 @@ def prepare_for_next_run(option, device, step, stage_location):
         device.set_current(3, device.get_current() + step)
 
 
-def try_update(x_val, y_val):
-    pass
+def meas_v_and_a(power_source, v_lst, cur_lst, stop):
+    while True:
+        v_lst.append(power_source.get_voltage(3))
+        cur_lst.append(power_source.get_current(3))
+        print((v_lst[-1], cur_lst[-1]))
+        if stop:
+            break
 
 
 def switch_polarity(power_source, pos):
+    """
+    switch current polarity
+    :param power_source: power source object
+    :param pos: position to switch to
+    """
     if pos == 'pos':
         power_source.set_voltage(2, 5)
     else:
         power_source.set_voltage(2, 0)
 
 
-def increment_current(power_source, cur_val, step):
-    power_source.set_current(3, cur_val + step)
+# def increment_current(power_source, cur_val, step):
+#     power_source.set_current(3, cur_val + step)
 
 
 def create_file_name(cur_freq, app_cur, pos):
-    return str(cur_freq) + "_GHz"
+    return str(cur_freq) + "_GHz_" + str(pos) + str(app_cur) + '_amp'
 
 
 def main():
-    max_cur = 0.1  # temp val
-    path = str(pathlib.Path(__file__).parent.resolve()) + '\\temp data.csv'
-    # plt.ion()
+    # path = str(pathlib.Path(__file__).parent.resolve()) + '\\temp data.csv'
     file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit,\
         init_cur, cur_limit, cur_step = organize_run_parameters(sys.argv[1:])
     lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
@@ -262,34 +265,43 @@ def main():
                                init_freq)
     time.sleep(5)
     polarity = 'pos'
+    running_cur = init_cur
     while rf_source.get_frequency() <= freq_limit:
-        running_cur = power_source_current_amp.get_current(3)
-        while abs(running_cur) <= max_cur:
-            # power_source_current_amp.enable_single_channel(3, True) uncomment at the end
-            # plt.figure(1)
-            # plt.show(block=False)
-            # plt.show(block=False)
-            position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst = [], [], [], [], [], []
+        while abs(running_cur) <= cur_limit:
+            stop_threads = False
+            if running_cur == 0:
+                power_source_current_amp.enable_single_channel(3, False)
+            else:
+                power_source_current_amp.enable_single_channel(3, True)
+            position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
             lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
                                                        args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
                                                              x_lst, y_lst, theta_lst])
-            # if (run_with_current)
+            voltage_current_meas_thread = Thread(target=meas_v_and_a, args=[power_source_current_amp, v_lst, cur_lst,
+                                                                            lambda: stop_threads])
             # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
             stage_sweep_move(stage_speed, stage_limit)
             lock_in_and_magnetic_field_thread.start()
-            # live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250, fargs=(path,))
+            voltage_current_meas_thread.start()
             lock_in_and_magnetic_field_thread.join()
-            # plt.close()
-            # post_run(file_save_location, file_name, [mag_field_lst, r_lst])
+            stop_threads = True
+            voltage_current_meas_thread.join()
+            power_source_current_amp.enable_single_channel(3, False)
             post_run(file_save_location, 'aaa', [position_lst, mag_field_lst, r_lst,
                                                  x_lst, y_lst, theta_lst])
-            if polarity == 'pos':
-                switch_polarity(power_source_current_amp, 'neg')
-                prepare_for_next_run(2, power_source_current_amp, 0, 24)
-            else:
-                switch_polarity(power_source_current_amp, 'pos')
+            if running_cur == 0:
                 prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
-
+            else:
+                if polarity == 'pos':
+                    switch_polarity(power_source_current_amp, 'neg')
+                    prepare_for_next_run(2, power_source_current_amp, 0, 24)
+                    running_cur = -running_cur
+                    polarity = 'neg'
+                else:
+                    switch_polarity(power_source_current_amp, 'pos')
+                    prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
+                    running_cur += cur_step
+                    polarity = 'pos'
         prepare_for_next_run(1, rf_source, freq_step, 24)
     post_test(power_source_motor, power_source_current_amp, rf_source)
     # todo live update the graph
