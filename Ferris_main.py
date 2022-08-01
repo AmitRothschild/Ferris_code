@@ -138,10 +138,12 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
     :param theta: reference to the theta list
     """
     fieldnames = ["magnetic filed", "R"]
+    # counter = 0
     with open('temp data.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
     with Thorlabs.KinesisMotor("27004822") as stage:
         while stage.get_position() / MM_TO_STEPS_RATIO > end_location:
+            # lock_in_and_stage_data_thread.counter +=1
             lock_in_measurement = lock_in.snap('R', 'X', 'Y', 'Theta')
             location.append(stage.get_position() / MM_TO_STEPS_RATIO)
             field.append(location_to_magnetic_field(stage.get_position() / MM_TO_STEPS_RATIO))
@@ -153,6 +155,11 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
             with open('temp data.csv', 'a', encoding='UTF8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writerow(info)
+            # counter += 1
+            # if counter % 10 == 0:
+            #     plt.cla()
+            #     plt.plot(field, r)
+            # plt.show(block=False)
             time.sleep(0.05)
     print('sweep is done')
 
@@ -183,7 +190,10 @@ def organize_run_parameters(run_parameters):
     freq_step = float(run_parameters[4])
     speed = float(run_parameters[5])
     stage_limit = float(run_parameters[6])
-    return file_location, rf_power, init_freq, freq_limit, freq_step, speed, stage_limit
+    init_cur = float(run_parameters[7])
+    cur_limit = float(run_parameters[8])
+    cur_step = float(run_parameters[9])
+    return file_location, rf_power, init_freq, freq_limit, freq_step, speed, stage_limit, init_cur, cur_limit, cur_step
 
 
 def location_to_magnetic_field(stage_location):
@@ -201,20 +211,33 @@ def location_to_magnetic_field(stage_location):
     return a * math.exp(b * stage_location) + c * math.exp(c * d)
 
 
-def post_run(file_save_location, file_name, measured_v_vs_h, measured_graph):
-    file_save_location + '\\' + file_name + 'txt'
-    np.savetxt(file_save_location + '\\' + file_name + 'txt', measured_v_vs_h, fmt='%d')
+def post_run(file_save_location, file_name, measured_data):
+    plt.plot(measured_data[1], measured_data[2])
+    plt.savefig('test_fig.png', format="png")
+    # data = [mag_lst, r_lst]
+    # file_save_location + '\\' + file_name + 'txt'
+    # np.savetxt(file_save_location + '\\' + file_name + 'txt', data, fmt='%d')
     # with open(file_save_location, 'a') as f:
     #     data_as_str = measured_v_vs_h.to_string(header=True, index=False)
     #     f.write(data_as_str)
 
 
-def prepare_for_next_run(rf_source, step):
-    rf_source.set_frequency(rf_source.get_frequency() + step)
+def prepare_for_next_run(option, device, step, stage_location):
+    if step == 0:
+        move_stage(stage_location)
+        return
+    if option == 1:
+        device.set_frequency(device.get_frequency() + step)
+    else:
+        device.set_current(3, device.get_current() + step)
+
+
+def try_update(x_val, y_val):
+    pass
 
 
 def switch_polarity(power_source, pos):
-    if pos:
+    if pos == 'pos':
         power_source.set_voltage(2, 5)
     else:
         power_source.set_voltage(2, 0)
@@ -225,36 +248,51 @@ def increment_current(power_source, cur_val, step):
 
 
 def create_file_name(cur_freq, app_cur, pos):
-    pass
+    return str(cur_freq) + "_GHz"
 
 
 def main():
-    plt.figure()
+    max_cur = 0.1  # temp val
     path = str(pathlib.Path(__file__).parent.resolve()) + '\\temp data.csv'
-    file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit = organize_run_parameters(
-        sys.argv[1:])
+    # plt.ion()
+    file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit,\
+        init_cur, cur_limit, cur_step = organize_run_parameters(sys.argv[1:])
     lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
     init_basic_test_conditions(24, power_source_motor, rf_source, power_source_current_amp, rf_power,
                                init_freq)
     time.sleep(5)
+    polarity = 'pos'
     while rf_source.get_frequency() <= freq_limit:
-        position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst = [], [], [], [], [], []
-        lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
-                                                   args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
-                                                         x_lst, y_lst, theta_lst])
-        # if (run_with_current)
-        # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
-        stage_sweep_move(stage_speed, stage_limit)
-        lock_in_and_magnetic_field_thread.start()
-        live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250, fargs=(path,))
-        plt.show()
-        plt.savefig('test_fig.png')
-        plt.close()
-        lock_in_and_magnetic_field_thread.join()
-        # post_run(file_save_location, file_name, measured_v_vs_h, measured_graph)
-        prepare_for_next_run(rf_source, freq_step)
+        running_cur = power_source_current_amp.get_current(3)
+        while abs(running_cur) <= max_cur:
+            # power_source_current_amp.enable_single_channel(3, True) uncomment at the end
+            # plt.figure(1)
+            # plt.show(block=False)
+            # plt.show(block=False)
+            position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst = [], [], [], [], [], []
+            lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
+                                                       args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
+                                                             x_lst, y_lst, theta_lst])
+            # if (run_with_current)
+            # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
+            stage_sweep_move(stage_speed, stage_limit)
+            lock_in_and_magnetic_field_thread.start()
+            # live_update = FuncAnimation(plt.gcf(), live_update_fig, interval=250, fargs=(path,))
+            lock_in_and_magnetic_field_thread.join()
+            # plt.close()
+            # post_run(file_save_location, file_name, [mag_field_lst, r_lst])
+            post_run(file_save_location, 'aaa', [position_lst, mag_field_lst, r_lst,
+                                                 x_lst, y_lst, theta_lst])
+            if polarity == 'pos':
+                switch_polarity(power_source_current_amp, 'neg')
+                prepare_for_next_run(2, power_source_current_amp, 0, 24)
+            else:
+                switch_polarity(power_source_current_amp, 'pos')
+                prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
+
+        prepare_for_next_run(1, rf_source, freq_step, 24)
     post_test(power_source_motor, power_source_current_amp, rf_source)
-    # todo create full run blocks with the relevant loops
+    # todo live update the graph
 
 
 if __name__ == '__main__':
