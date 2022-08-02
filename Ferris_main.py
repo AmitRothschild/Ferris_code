@@ -12,9 +12,13 @@ from PowerSource import PowerSource
 from RFSource import RFSource
 from PowerSourceKeithley import PowerSourceKeithley
 import math
+import matplotlib
 import matplotlib.pyplot as plt
-# from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation
 import csv
+
+matplotlib.use('Agg')
+
 
 MM_TO_STEPS_RATIO = 34304
 
@@ -30,11 +34,11 @@ def pre_test():
     power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
     power_source_cur_amp.enable_output(False)
     time.sleep(10)
-    with Thorlabs.KinesisMotor("27004822") as stage:
-        stage.home(force=True)
-        print('started homing')
-        stage.wait_for_home()
-        print('homing complete')
+    # print('started homing')
+    # with Thorlabs.KinesisMotor("27004822") as stage:
+    #     stage.home(force=True)
+    #     stage.wait_for_home()
+    #     print('homing complete')
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
     for i in range(10):
         lock_in.snap('R', 'X', 'Y', 'Theta')
@@ -112,6 +116,7 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, power_so
     power_source_rf_amp.set_current(1, 0.7)
     power_source_rf_amp.set_voltage(2, 5)
     power_source_rf_amp.set_current(2, 0.03)
+    power_source_rf_amp.set_voltage(3, 6)
     power_source_rf_amp.enable_single_channel(1, True)
     power_source_rf_amp.enable_single_channel(2, True)
     time.sleep(3)
@@ -155,7 +160,8 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
             #     plt.cla()
             #     plt.plot(field, r)
             # plt.show(block=False)
-            time.sleep(0.05)
+            # print('yay thread1')
+            # time.sleep(0.05)
     print('sweep is done')
 
 
@@ -170,6 +176,13 @@ def stage_sweep_move(speed, end_location):
         stage.setup_velocity(None, None, speed_in_steps_per_sec)
         print('started the stage sweep move')
         stage.move_to(end_location * MM_TO_STEPS_RATIO)
+
+
+def get_stage_pos():
+    with Thorlabs.KinesisMotor("27004822") as stage:
+        pos = stage.get_position() / MM_TO_STEPS_RATIO
+        # print(pos)
+        return pos
 
 
 def organize_run_parameters(run_parameters):
@@ -223,17 +236,27 @@ def prepare_for_next_run(option, device, step, stage_location):
         return
     if option == 1:
         device.set_frequency(device.get_frequency() + step)
+        move_stage(stage_location)
     else:
-        device.set_current(3, device.get_current() + step)
+        device.set_current(3, device.get_current(3) + step)
+        move_stage(stage_location)
 
 
 def meas_v_and_a(power_source, v_lst, cur_lst, stop):
+    counter = 0
     while True:
-        v_lst.append(power_source.get_voltage(3))
-        cur_lst.append(power_source.get_current(3))
-        print((v_lst[-1], cur_lst[-1]))
-        if stop:
+        counter += 1
+        if counter == 1000:
+            v_lst.append(power_source.get_voltage(3))
+            cur_lst.append(power_source.get_current(3))
+            counter = 0
+            # print('yay thread2 meas')
+        # print((v_lst[-1], cur_lst[-1]))
+        # time.sleep(1)
+        if stop():
+            print('!!!done!!!')
             break
+
 
 
 def switch_polarity(power_source, pos):
@@ -242,6 +265,7 @@ def switch_polarity(power_source, pos):
     :param power_source: power source object
     :param pos: position to switch to
     """
+    print('Switching polarity')
     if pos == 'pos':
         power_source.set_voltage(2, 5)
     else:
@@ -252,17 +276,60 @@ def switch_polarity(power_source, pos):
 #     power_source.set_current(3, cur_val + step)
 
 
+def increment_running_current(power_source, running_cur):
+    power_source.set_current(3, abs(running_cur))
+    power_source.enable_single_channel(3, True)
+
+
 def create_file_name(cur_freq, app_cur, pos):
     return str(cur_freq) + "_GHz_" + str(pos) + str(app_cur) + '_amp'
 
 
+def get_input_from_user():
+    path = input('Specify save location')
+    rf_power = float(input('Specify rf power in dbm'))
+    init_freq = float(input('Specify initial rf frequency'))
+    freq_lim = float(input('Specify rf frequency limit'))
+    freq_step = float(input('Specify rf frequency steps'))
+    stage_speed = float(input('Specify stage speed'))
+    stage_lim = float(input('Specify stage movement limit'))
+    init_cur = float(input('Specify initial current'))
+    cur_lim = float(input('Specify current limit'))
+    cur_step = float(input('Specify current steps'))
+    return path, rf_power, init_freq, freq_lim, freq_step, stage_speed, stage_lim, init_cur, cur_lim, cur_step
+
+
+def hard_coded_or_user_input():
+    user_decision = input('Do you wish to enter inputs or use the hardcoded input? (Y for user input/N for hardcoded)')
+    while user_decision not in ['Y', 'N']:
+        user_decision = input('Invalid input, use Y or N only')
+    return True if user_decision == 'Y' else False
+
+
+def print_cur_settings(cur_freq, running_cur):
+    print('\n\n')
+    print('############################################################################')
+    print('current run is at ', cur_freq, ' GHz and applying current of', running_cur, ' A')
+    print('##############################################################')
+    print('\n\n')
+
+
 def main():
     # path = str(pathlib.Path(__file__).parent.resolve()) + '\\temp data.csv'
-    file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit,\
-        init_cur, cur_limit, cur_step = organize_run_parameters(sys.argv[1:])
+    # use_user_input = hard_coded_or_user_input()
+    # pass this block to an external function
+    use_user_input = False  # comment this line
+    if use_user_input:
+        file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit, init_cur, cur_limit, \
+            cur_step = get_input_from_user()
+    else:
+        file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit, init_cur, cur_limit, \
+            cur_step = organize_run_parameters(sys.argv[1:])
+        #   block ends here
+
     lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
     init_basic_test_conditions(24, power_source_motor, rf_source, power_source_current_amp, rf_power,
-                               init_freq)
+                               init_freq)  # this should be part of the pretest
     time.sleep(5)
     polarity = 'pos'
     running_cur = init_cur
@@ -272,7 +339,7 @@ def main():
             if running_cur == 0:
                 power_source_current_amp.enable_single_channel(3, False)
             else:
-                power_source_current_amp.enable_single_channel(3, True)
+                increment_running_current(power_source_current_amp, running_cur)
             position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
             lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
                                                        args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
@@ -280,17 +347,24 @@ def main():
             voltage_current_meas_thread = Thread(target=meas_v_and_a, args=[power_source_current_amp, v_lst, cur_lst,
                                                                             lambda: stop_threads])
             # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
+            print_cur_settings(rf_source.get_frequency(), running_cur)
             stage_sweep_move(stage_speed, stage_limit)
             lock_in_and_magnetic_field_thread.start()
-            voltage_current_meas_thread.start()
+            if running_cur != 0:
+                voltage_current_meas_thread.start()
             lock_in_and_magnetic_field_thread.join()
-            stop_threads = True
-            voltage_current_meas_thread.join()
+            if not lock_in_and_magnetic_field_thread.is_alive():
+                stop_threads = True
+            if voltage_current_meas_thread.is_alive():
+                voltage_current_meas_thread.join()
             power_source_current_amp.enable_single_channel(3, False)
             post_run(file_save_location, 'aaa', [position_lst, mag_field_lst, r_lst,
                                                  x_lst, y_lst, theta_lst])
+            # pass all this block to an external function
+            print('preparing for the next iteration')
             if running_cur == 0:
                 prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
+                running_cur += cur_step
             else:
                 if polarity == 'pos':
                     switch_polarity(power_source_current_amp, 'neg')
@@ -302,8 +376,10 @@ def main():
                     prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
                     running_cur += cur_step
                     polarity = 'pos'
+        #   block ends here
         prepare_for_next_run(1, rf_source, freq_step, 24)
     post_test(power_source_motor, power_source_current_amp, rf_source)
+
     # todo live update the graph
 
 
