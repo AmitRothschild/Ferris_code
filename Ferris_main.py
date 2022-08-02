@@ -4,8 +4,8 @@ import sys
 from threading import Thread
 # import logging
 import time
-# import pandas as pd
-# import numpy as np
+import pandas as pd
+import numpy as np
 from pylablib.devices import Thorlabs
 from pymeasure import instruments
 from PowerSource import PowerSource
@@ -14,6 +14,8 @@ from PowerSourceKeithley import PowerSourceKeithley
 import math
 import matplotlib
 import matplotlib.pyplot as plt
+from datetime import datetime
+
 from matplotlib.animation import FuncAnimation
 import csv
 
@@ -21,7 +23,7 @@ matplotlib.use('Agg')
 
 
 MM_TO_STEPS_RATIO = 34304
-
+INIT_LOCATION = 24
 
 def pre_test():
     """
@@ -137,13 +139,11 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
     :param y: reference to the y list
     :param theta: reference to the theta list
     """
-    fieldnames = ["magnetic filed", "R"]
-    # counter = 0
-    with open('temp data.csv', 'w', encoding='UTF8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    # fieldnames = ["magnetic filed", "R"]
+    # with open('temp data.csv', 'w', encoding='UTF8', newline='') as f:
+    #     writer = csv.DictWriter(f, fieldnames=fieldnames)
     with Thorlabs.KinesisMotor("27004822") as stage:
         while stage.get_position() / MM_TO_STEPS_RATIO > end_location:
-            # lock_in_and_stage_data_thread.counter +=1
             lock_in_measurement = lock_in.snap('R', 'X', 'Y', 'Theta')
             location.append(stage.get_position() / MM_TO_STEPS_RATIO)
             field.append(location_to_magnetic_field(stage.get_position() / MM_TO_STEPS_RATIO))
@@ -151,17 +151,10 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
             x.append(lock_in_measurement[1])
             y.append(lock_in_measurement[2])
             theta.append(lock_in_measurement[3])
-            info = {'magnetic filed': field[-1], 'R': r[-1]}
-            with open('temp data.csv', 'a', encoding='UTF8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writerow(info)
-            # counter += 1
-            # if counter % 10 == 0:
-            #     plt.cla()
-            #     plt.plot(field, r)
-            # plt.show(block=False)
-            # print('yay thread1')
-            # time.sleep(0.05)
+            # info = {'magnetic filed': field[-1], 'R': r[-1]}
+            # with open('temp data.csv', 'a', encoding='UTF8', newline='') as f:
+            #     writer = csv.DictWriter(f, fieldnames=fieldnames)
+            #     writer.writerow(info)
     print('sweep is done')
 
 
@@ -220,14 +213,14 @@ def location_to_magnetic_field(stage_location):
 
 
 def post_run(file_save_location, file_name, measured_data):
-    plt.plot(measured_data[1], measured_data[2])
+    now = datetime.now()
+    cur_date = now.strftime("%d_%m_%Y _%H_%M_")
+    plt.plot(measured_data[0], measured_data[1])
     plt.savefig('test_fig.png', format="png")
-    # data = [mag_lst, r_lst]
-    # file_save_location + '\\' + file_name + 'txt'
-    # np.savetxt(file_save_location + '\\' + file_name + 'txt', data, fmt='%d')
-    # with open(file_save_location, 'a') as f:
-    #     data_as_str = measured_v_vs_h.to_string(header=True, index=False)
-    #     f.write(data_as_str)
+    full_name = cur_date+file_name
+    data = np.column_stack([measured_data[0], measured_data[1], measured_data[2], measured_data[3], measured_data[4],
+                           measured_data[5]])
+    np.savetxt(full_name+'.txt', data, fmt=['%.8f', '%.8f', '%.8f', '%.8f', '%.8f', '%.8f'])
 
 
 def prepare_for_next_run(option, device, step, stage_location):
@@ -243,14 +236,17 @@ def prepare_for_next_run(option, device, step, stage_location):
 
 
 def meas_v_and_a(power_source, v_lst, cur_lst, stop):
-    counter = 0
+    init_res = 0
+    notice = False
     while True:
-        counter += 1
-        if counter == 1000:
-            v_lst.append(power_source.get_voltage(3))
-            cur_lst.append(power_source.get_current(3))
-            counter = 0
-            # print('yay thread2 meas')
+        v_lst.append(power_source.get_voltage(3))
+        cur_lst.append(power_source.get_current(3))
+        if len(v_lst) == 1:
+            init_res = v_lst[0]/cur_lst[0]
+        cur_res = v_lst[-1]/cur_lst[-1]
+        if cur_res>1.1*init_res and not notice:
+            notice = True
+
         # print((v_lst[-1], cur_lst[-1]))
         # time.sleep(1)
         if stop():
@@ -328,8 +324,12 @@ def main():
         #   block ends here
 
     lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test()
-    init_basic_test_conditions(24, power_source_motor, rf_source, power_source_current_amp, rf_power,
+    init_basic_test_conditions(INIT_LOCATION, power_source_motor, rf_source, power_source_current_amp, rf_power,
                                init_freq)  # this should be part of the pretest
+    if cur_limit == 0:
+        run_with_cur = False
+    else:
+        run_with_cur = True
     time.sleep(5)
     polarity = 'pos'
     running_cur = init_cur
@@ -346,7 +346,7 @@ def main():
                                                              x_lst, y_lst, theta_lst])
             voltage_current_meas_thread = Thread(target=meas_v_and_a, args=[power_source_current_amp, v_lst, cur_lst,
                                                                             lambda: stop_threads])
-            # file_name = create_file_name(rf_source.get_frequency(), 0, 'pos')
+            file_name = create_file_name(rf_source.get_frequency(), running_cur, 'pos')
             print_cur_settings(rf_source.get_frequency(), running_cur)
             stage_sweep_move(stage_speed, stage_limit)
             lock_in_and_magnetic_field_thread.start()
@@ -358,28 +358,30 @@ def main():
             if voltage_current_meas_thread.is_alive():
                 voltage_current_meas_thread.join()
             power_source_current_amp.enable_single_channel(3, False)
-            post_run(file_save_location, 'aaa', [position_lst, mag_field_lst, r_lst,
-                                                 x_lst, y_lst, theta_lst])
+            post_run(file_save_location, file_name, [mag_field_lst, r_lst, x_lst, y_lst, theta_lst, position_lst])
             # pass all this block to an external function
             print('preparing for the next iteration')
-            if running_cur == 0:
-                prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
-                running_cur += cur_step
-            else:
-                if polarity == 'pos':
-                    switch_polarity(power_source_current_amp, 'neg')
-                    prepare_for_next_run(2, power_source_current_amp, 0, 24)
-                    running_cur = -running_cur
-                    polarity = 'neg'
-                else:
-                    switch_polarity(power_source_current_amp, 'pos')
-                    prepare_for_next_run(2, power_source_current_amp, cur_step, 24)
+            if run_with_cur:
+                if running_cur == 0:
+                    prepare_for_next_run(2, power_source_current_amp, cur_step, INIT_LOCATION)
                     running_cur += cur_step
-                    polarity = 'pos'
+                else:
+                    if polarity == 'pos':
+                        switch_polarity(power_source_current_amp, 'neg')
+                        prepare_for_next_run(2, power_source_current_amp, 0, INIT_LOCATION)
+                        running_cur = -running_cur
+                        polarity = 'neg'
+                    else:
+                        switch_polarity(power_source_current_amp, 'pos')
+                        prepare_for_next_run(2, power_source_current_amp, cur_step, INIT_LOCATION)
+                        running_cur += cur_step
+                        polarity = 'pos'
+            else:
+                break
         #   block ends here
-        prepare_for_next_run(1, rf_source, freq_step, 24)
+        prepare_for_next_run(1, rf_source, freq_step, INIT_LOCATION)
     post_test(power_source_motor, power_source_current_amp, rf_source)
-
+    # todo first priority, handle the no current runs and no steps runs with both current and frequency
     # todo live update the graph
 
 

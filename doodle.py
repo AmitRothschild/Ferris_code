@@ -4,10 +4,14 @@ import time
 import math
 from itertools import count
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 from matplotlib.animation import FuncAnimation
 from threading import Thread
 import csv
 import pathlib
+import matplotlib
+matplotlib.use('Agg')
 
 def animate(i, path):
     with open(path, newline='') as f:
@@ -40,18 +44,30 @@ def create_data(x_lst, t_lst):
 
 
 def main():
-    plt.figure()
-    plt.locator_params(nbins=4)
-    x = []
-    t = []
-    path = str(pathlib.Path(__file__).parent.resolve()) + '\\try.csv'
-    # print(path)
-    data_thread = Thread(target=create_data, args=[x, t])
-    data_thread.start()
-    ani = FuncAnimation(plt.gcf(), animate, interval=500, fargs=(path,))
-    plt.show()
-    data_thread.join()
-    print(x)
+    a , b, c = [],[],[]
+    for i in range(50):
+        a.append(i*0.0033112)
+        b.append(i*0.010232)
+        c.append(i*0.0020221231)
+    # a.insert(0, 'a')
+    # b.insert(0, 'b')
+    # c.insert(0, 'c')
+    # df = pd.DataFrame(list(zip(a, b, c))),
+    # print(df)
+    data = np.column_stack([a, c, c])
+    np.savetxt('np.txt', data, fmt=['%f', '%f', '%f'])
+    # plt.figure()
+    # plt.locator_params(nbins=4)
+    # x = []
+    # t = []
+    # path = str(pathlib.Path(__file__).parent.resolve()) + '\\try.csv'
+    # # print(path)
+    # data_thread = Thread(target=create_data, args=[x, t])
+    # data_thread.start()
+    # ani = FuncAnimation(plt.gcf(), animate, interval=500, fargs=(path,))
+    # plt.show()
+    # data_thread.join()
+    # print(x)
 
 
 if __name__ == '__main__':
