@@ -224,8 +224,8 @@ def post_run(file_save_location, file_name, measured_data):
     now = datetime.now()
     cur_date = now.strftime("%d_%m_%Y _%H_%M_")
     plt.plot(measured_data[0], measured_data[1])
-    plt.savefig('test_fig.png', format="png")
     full_name = cur_date+file_name
+    plt.savefig(full_name+'.png', format="png")
     data = np.column_stack([measured_data[0], measured_data[1], measured_data[2], measured_data[3], measured_data[4],
                            measured_data[5]])
     np.savetxt(full_name+'.txt', data, fmt=['%.8f', '%.8f', '%.8f', '%.8f', '%.8f', '%.8f'])
