@@ -379,6 +379,7 @@ def main():
             else:
                 break
         #   block ends here
+        # check if rebase works
         prepare_for_next_run(1, rf_source, freq_step, INIT_LOCATION)
     post_test(power_source_motor, power_source_current_amp, rf_source)
     # todo first priority, handle the no current runs and no steps runs with both current and frequency
