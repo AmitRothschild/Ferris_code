@@ -119,7 +119,7 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, power_so
     power_source_rf_amp.set_voltage(3, 6)
     power_source_rf_amp.enable_single_channel(1, True)
     power_source_rf_amp.enable_single_channel(2, True)
-    time.sleep(3)
+    time.sleep(50)
     rf_source.set_frequency(rf_init_freq)
     rf_source.set_power(rf_power)
     rf_source.enable_output(True)
@@ -203,15 +203,15 @@ def location_to_magnetic_field(stage_location):
     """
     converts the stage location to magnetic field
     the fit is two exponents: a*exp(b*x) + c*exp(d*x)
-    a = 411.9, b = -0.3221, c = 63.88, d = -0.09755
+    a = 4119, b = -0.3221, c = 638.8, d = -0.09755
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
     a = 4119
     b = -0.3221
-    c = 6388
+    c = 638.8
     d = -0.09755
-    return a * math.exp(b * stage_location) + c * math.exp(c * d)
+    return a * math.exp(b * stage_location) + c * math.exp(c * stage_location)
 
 
 def post_run(file_save_location, file_name, measured_data):
@@ -223,6 +223,7 @@ def post_run(file_save_location, file_name, measured_data):
     """
     now = datetime.now()
     cur_date = now.strftime("%d_%m_%Y _%H_%M_")
+    plt.cla()
     plt.plot(measured_data[0], measured_data[1])
     full_name = cur_date+file_name
     plt.savefig(full_name+'.png', format="png")
