@@ -1,5 +1,6 @@
 # Ferris FMR main
 # import pathlib
+import os
 import sys
 from threading import Thread
 # import logging
@@ -233,10 +234,12 @@ def post_run(file_save_location, file_name, measured_data):
     plt.cla()
     plt.plot(measured_data[0], measured_data[1])
     full_name = cur_date+file_name
-    plt.savefig(full_name+'.png', format="png")
+    fig_full_name = os.path.join(file_save_location, full_name+'.png')
+    data_full_name = os.path.join(file_save_location,  full_name+'.txt')
+    plt.savefig(fig_full_name, format="png")
     data = np.column_stack([measured_data[0], measured_data[1], measured_data[2], measured_data[3], measured_data[4],
                            measured_data[5]])
-    np.savetxt(full_name+'.txt', data, fmt=['%.8f', '%.8f', '%.8f', '%.8f', '%.8f', '%.8f'])
+    np.savetxt(data_full_name, data, fmt=['%.8f', '%.8f', '%.8f', '%.8f', '%.8f', '%.8f'])
 
 
 def prepare_for_next_run(option, device, step, stage_location):
