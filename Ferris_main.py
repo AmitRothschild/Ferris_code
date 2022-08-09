@@ -267,6 +267,7 @@ def meas_v_and_a(power_source, v_lst, cur_lst, stop):
     """
     init_res = 0
     notice = False
+    # check if worsks
     while True:
         if float(datetime.now().strftime("%S")) % 5 == 0:
             v_lst.append(power_source.get_voltage(3))
