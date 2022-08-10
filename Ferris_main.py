@@ -39,11 +39,11 @@ def pre_test(rf_power, init_freq):
     power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
     power_source_cur_amp.enable_output(False)
     time.sleep(10)
-    # print('started homing')
-    # with Thorlabs.KinesisMotor("27004822") as stage:
-    #     stage.home(force=True)
-    #     stage.wait_for_home()
-    #     print('homing complete')
+    print('started homing')
+    with Thorlabs.KinesisMotor("27004822") as stage:
+        stage.home(force=True)
+        stage.wait_for_home()
+        print('homing complete')
     lock_in = instruments.srs.SR830('GPIB2::8::INSTR')
     for i in range(10):
         lock_in.snap('R', 'X', 'Y', 'Theta')
@@ -70,7 +70,6 @@ def post_test(power_source_motor, power_source_current_amp, rf_source):
     power_source_current_amp.close_client()
 
 
-# move the stage to a certain location
 def move_stage(location):
     """
     move the stage to a desired location
@@ -184,7 +183,6 @@ def get_stage_pos():
     """
     with Thorlabs.KinesisMotor("27004822") as stage:
         pos = stage.get_position() / MM_TO_STEPS_RATIO
-        # print(pos)
         return pos
 
 
@@ -467,7 +465,6 @@ def main():
         else:
             break
     post_test(power_source_motor, power_source_current_amp, rf_source)
-    # todo first priority, handle the no current runs and no steps runs with both current and frequency - need to check
     # todo live update the graph
 
 
