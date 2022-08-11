@@ -11,7 +11,7 @@ meas_lst = []
 location_lst = []
 STOP_STAGE = 22
 multimeter = MultiMeter('GPIB2::22::INSTR')
-
+# test for the magnetic field
 
 time.sleep(2)
 with Thorlabs.KinesisMotor("27004822") as stage:
