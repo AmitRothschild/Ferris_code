@@ -35,8 +35,6 @@ def pre_test(rf_power, init_freq):
     """
     rf_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
     rf_source.enable_output(False)
-    # power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
-    # power_source_motor.enable_output(False)
     power_source = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
     power_source.enable_output(False)
     current_source = PowerSourceFastMeas(1, 'GPIB2::23::INSTR')
@@ -117,9 +115,6 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, current_
     :return: none
     """
     move_stage(stage_location)
-    # power_source.set_voltage(2, 14.5)
-    # power_source.set_current(2, 0.55)
-    # power_source.enable_output(True)
     power_source.set_voltage(1, 12)
     power_source.set_current(1, 0.7)
     power_source.set_voltage(2, 8) # change to 24 when done
@@ -262,7 +257,6 @@ def set_next_iter_setting(option, device, step, stage_location):
         device.set_current(-device.get_current() + step)
     else:
         device.set_current(abs(device.get_current()) + step)
-
 
 
 def meas_v_and_a(power_source, v_lst, cur_lst, stop):
@@ -469,7 +463,6 @@ def main():
         else:
             break
     post_test(power_source, current_source, rf_source)
-    # todo change the code and integrate the fast power source - physical rewiring is needed
     # todo live update the graph
 
 
