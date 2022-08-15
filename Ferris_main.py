@@ -284,19 +284,6 @@ def meas_v_and_a(power_source, v_lst, cur_lst, stop):
             break
 
 
-def switch_polarity(power_source, pos):
-    """
-    switch current polarity
-    :param power_source: power source object
-    :param pos: position to switch to
-    """
-    print('Switching polarity')
-    if pos == 'pos':
-        power_source.set_voltage(2, 5)
-    else:
-        power_source.set_voltage(2, 0)
-
-
 def increment_running_current(power_source, running_cur):
     """
     Set the applied current to the given value
@@ -385,11 +372,11 @@ def input_handler():
 
 def prepare_for_next_iteration(running_current, current_source, current_step, polarity):
     """
-
-    :param running_current:
-    :param current_source:
-    :param current_step:
-    :param polarity:
+    this function sets the correct current for the next iteration
+    :param running_current: applied current  in the current runs
+    :param current_source: current source object
+    :param current_step: current increment size
+    :param polarity: current polarity
     :return:
     """
     print('preparing for the next iteration')
@@ -410,8 +397,8 @@ def prepare_for_next_iteration(running_current, current_source, current_step, po
 
 def main():
     """
-
-    :return:
+    The main function of the Ferris FMR control script - this function initiates all the function calls
+    :return: None
     """
     file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit, init_cur, cur_limit,\
         cur_step = input_handler()

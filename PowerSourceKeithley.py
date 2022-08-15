@@ -48,7 +48,6 @@ class PowerSourceKeithley(PowerSource.PowerSource):
         channel = parse_channel(channel_number)
         self.instance.write('INST:NSEL ', channel)
         voltage = self.instance.query(':MEAS:VOLT?')
-        # print('measured voltage is ', voltage.strip('\n'))
         return float(voltage.strip('\n'))
 
     def get_current(self, channel_number):
@@ -57,7 +56,6 @@ class PowerSourceKeithley(PowerSource.PowerSource):
         channel = parse_channel(channel_number)
         self.instance.write('INST:NSEL ', channel)
         current = self.instance.query(':MEAS:CURR?')
-        # print('measured current is ', current.strip('\n'))
         return float(current.strip('\n'))
 
     def enable_single_channel(self, channel_number, on):
