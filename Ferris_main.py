@@ -12,6 +12,7 @@ from pymeasure import instruments
 from PowerSource import PowerSource
 from RFSource import RFSource
 from PowerSourceKeithley import PowerSourceKeithley
+from PowerSourceKeysightFastMeas import PowerSourceFastMeas
 import math
 import matplotlib
 import matplotlib.pyplot as plt
@@ -34,10 +35,12 @@ def pre_test(rf_power, init_freq):
     """
     rf_source = RFSource('USB0::0x03EB::0xAFFF::181-4396D0000-1246::0::INSTR')
     rf_source.enable_output(False)
-    power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
-    power_source_motor.enable_output(False)
-    power_source_cur_amp = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
-    power_source_cur_amp.enable_output(False)
+    # power_source_motor = PowerSource(2, 'GPIB2::10::INSTR')
+    # power_source_motor.enable_output(False)
+    power_source = PowerSourceKeithley(3, 'GPIB2::1::INSTR')
+    power_source.enable_output(False)
+    current_source = PowerSourceFastMeas(1, 'GPIB2::23::INSTR')
+    current_source.enable_output(False)
     time.sleep(10)
     print('started homing')
     with Thorlabs.KinesisMotor("27004822") as stage:
@@ -49,9 +52,9 @@ def pre_test(rf_power, init_freq):
         lock_in.snap('R', 'X', 'Y', 'Theta')
         time.sleep(0.1)
     print('initialized lock in amp')
-    init_basic_test_conditions(INIT_LOCATION, power_source_motor, rf_source, power_source_cur_amp, rf_power,
+    init_basic_test_conditions(INIT_LOCATION, power_source, rf_source, current_source, rf_power,
                                init_freq)
-    return lock_in, power_source_motor, rf_source, power_source_cur_amp
+    return lock_in, power_source, rf_source, current_source
 
 
 def post_test(power_source_motor, power_source_current_amp, rf_source):
@@ -102,28 +105,30 @@ def move_stage(location):
 #     plt.plot(magnetic_field, r)
 
 
-def init_basic_test_conditions(stage_location, power_source, rf_source, power_source_rf_amp, rf_power, rf_init_freq):
+def init_basic_test_conditions(stage_location, power_source, rf_source, current_source, rf_power, rf_init_freq):
     """
     create all clients and make sure that test conditions are correct
     :param stage_location: initial stage location
-    :param power_source:  2 channel power source for the motor object
+    :param power_source:  3 channel power source
     :param rf_source: rf source object
-    :param power_source_rf_amp: 3 channel power source for rf amp and current driven tests
+    :param current_source: bipolar current source
     :param rf_power: rf power in dBm
     :param rf_init_freq: initial rf frequency for th run
     :return: none
     """
     move_stage(stage_location)
-    power_source.set_voltage(2, 14.5)
-    power_source.set_current(2, 0.55)
+    # power_source.set_voltage(2, 14.5)
+    # power_source.set_current(2, 0.55)
+    # power_source.enable_output(True)
+    power_source.set_voltage(1, 12)
+    power_source.set_current(1, 0.7)
+    power_source.set_voltage(2, 8) # change to 24 when done
+    power_source.set_current(2, 0.4) # change to 0.6 when done
+    power_source.set_voltage(3, 6)
+    power_source.set_current(3, 0.1)
     power_source.enable_output(True)
-    power_source_rf_amp.set_voltage(1, 12)
-    power_source_rf_amp.set_current(1, 0.7)
-    power_source_rf_amp.set_voltage(2, 5)
-    power_source_rf_amp.set_current(2, 0.03)
-    power_source_rf_amp.set_voltage(3, 6)
-    power_source_rf_amp.enable_single_channel(1, True)
-    power_source_rf_amp.enable_single_channel(2, True)
+    current_source.set_operation_mode(1)
+    current_source.set_voltage(6)
     time.sleep(50)
     rf_source.set_frequency(rf_init_freq)
     rf_source.set_power(rf_power)
@@ -240,7 +245,7 @@ def post_run(file_save_location, file_name, measured_data):
     np.savetxt(data_full_name, data, fmt=['%.8f', '%.8f', '%.8f', '%.8f', '%.8f', '%.8f'])
 
 
-def prepare_for_next_run(option, device, step, stage_location):
+def set_next_iter_setting(option, device, step, stage_location):
     """
     prepares the system for the next run
     :param option: indicates the function what operation to do
@@ -253,8 +258,11 @@ def prepare_for_next_run(option, device, step, stage_location):
         return
     if option == 1:
         device.set_frequency(device.get_frequency() + step)
+    elif option == 2:
+        device.set_current(-device.get_current() + step)
     else:
-        device.set_current(3, device.get_current(3) + step)
+        device.set_current(abs(device.get_current()) + step)
+
 
 
 def meas_v_and_a(power_source, v_lst, cur_lst, stop):
@@ -268,17 +276,15 @@ def meas_v_and_a(power_source, v_lst, cur_lst, stop):
     """
     init_res = 0
     notice = False
-    # check if worsks
     while True:
-        if float(datetime.now().strftime("%S")) % 5 == 0:
-            v_lst.append(power_source.get_voltage(3))
-            cur_lst.append(power_source.get_current(3))
-            if len(v_lst) == 1:
-                init_res = v_lst[0]/cur_lst[0]
-            cur_res = v_lst[-1]/cur_lst[-1]
-            if cur_res > 1.1*init_res and not notice:
-                notice = True
-                print('!!! Please note that resistance increased by 10% !!!')
+        v_lst.append(power_source.get_voltage())
+        cur_lst.append(power_source.get_current())
+        if len(v_lst) == 1:
+            init_res = v_lst[0]/cur_lst[0]
+        cur_res = v_lst[-1]/cur_lst[-1]
+        if cur_res > 1.1*init_res and not notice:
+            notice = True
+            print('!!! Please note that resistance increased by 10% !!!')
         if stop():
             print('!!!done!!!')
             break
@@ -303,8 +309,8 @@ def increment_running_current(power_source, running_cur):
     :param power_source: power source object
     :param running_cur: new DC current value
     """
-    power_source.set_current(3, abs(running_cur))
-    power_source.enable_single_channel(3, True)
+    power_source.set_current(running_cur)
+    power_source.enable_output(True)
 
 
 def create_file_name(cur_freq, app_cur):
@@ -383,29 +389,27 @@ def input_handler():
         cur_limit, cur_step
 
 
-def prepare_for_next_iteration(running_current, power_source, current_step, polarity):
+def prepare_for_next_iteration(running_current, current_source, current_step, polarity):
     """
 
     :param running_current:
-    :param power_source:
+    :param current_source:
     :param current_step:
     :param polarity:
     :return:
     """
     print('preparing for the next iteration')
     if running_current == 0:
-        prepare_for_next_run(2, power_source, current_step, INIT_LOCATION)
+        set_next_iter_setting(2, current_source, current_step, INIT_LOCATION)
         running_current += current_step
     else:
         if polarity == 'pos':
-            switch_polarity(power_source, 'neg')
-            prepare_for_next_run(2, power_source, 0, INIT_LOCATION)
             running_current = -running_current
+            set_next_iter_setting(2, current_source, 0, INIT_LOCATION)
             polarity = 'neg'
         else:
-            switch_polarity(power_source, 'pos')
-            prepare_for_next_run(2, power_source, current_step, INIT_LOCATION)
             running_current = abs(running_current) + current_step
+            set_next_iter_setting(3, current_source, current_step, INIT_LOCATION)
             polarity = 'pos'
     return running_current, polarity
 
@@ -417,7 +421,7 @@ def main():
     """
     file_save_location, rf_power, init_freq, freq_limit, freq_step, stage_speed, stage_limit, init_cur, cur_limit,\
         cur_step = input_handler()
-    lock_in, power_source_motor, rf_source, power_source_current_amp = pre_test(rf_power, init_freq)
+    lock_in, power_source, rf_source, current_source = pre_test(rf_power, init_freq)
     run_with_cur = False if cur_limit == 0 else True
     time.sleep(5)
     polarity = 'pos'
@@ -426,16 +430,16 @@ def main():
         while abs(running_cur) <= cur_limit:
             stop_threads = False
             if running_cur == 0:
-                power_source_current_amp.enable_single_channel(3, False)
+                current_source.enable_output(False)
             else:
-                increment_running_current(power_source_current_amp, running_cur)
+                increment_running_current(current_source, running_cur)
             print('start time')
             print(datetime.now().strftime("%H:%M:%S"))
             position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
             lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
                                                        args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
                                                              x_lst, y_lst, theta_lst])
-            voltage_current_meas_thread = Thread(target=meas_v_and_a, args=[power_source_current_amp, v_lst, cur_lst,
+            voltage_current_meas_thread = Thread(target=meas_v_and_a, args=[current_source, v_lst, cur_lst,
                                                                             lambda: stop_threads])
             file_name = create_file_name(rf_source.get_frequency(), running_cur)
             print_cur_settings(rf_source.get_frequency(), running_cur)
@@ -450,21 +454,22 @@ def main():
                 stop_threads = True
             if voltage_current_meas_thread.is_alive():
                 voltage_current_meas_thread.join()
-            power_source_current_amp.enable_single_channel(3, False)
+            current_source.enable_output(False)
             post_run(file_save_location, file_name, [mag_field_lst, r_lst, x_lst, y_lst, theta_lst, position_lst])
             print('end time')
             print(datetime.now().strftime("%H:%M:%S"))
             if run_with_cur:
-                running_cur, polarity = prepare_for_next_iteration(running_cur, power_source_current_amp, cur_step,
+                running_cur, polarity = prepare_for_next_iteration(running_cur, current_source, cur_step,
                                                                    polarity)
             else:
                 break
             time.sleep(10)
         if freq_step > 0:
-            prepare_for_next_run(1, rf_source, freq_step, INIT_LOCATION)
+            set_next_iter_setting(1, rf_source, freq_step, INIT_LOCATION)
         else:
             break
-    post_test(power_source_motor, power_source_current_amp, rf_source)
+    post_test(power_source, current_source, rf_source)
+    # todo change the code and integrate the fast power source - physical rewiring is needed
     # todo live update the graph
 
 

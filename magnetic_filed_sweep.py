@@ -6,10 +6,10 @@ import numpy as np
 
 
 MM_TO_STEPS_RATIO = 34304
-speed = 0.025
+speed = 0.075
 meas_lst = []
 location_lst = []
-STOP_STAGE = 22
+STOP_STAGE = 3
 multimeter = MultiMeter('GPIB2::22::INSTR')
 # test for the magnetic field
 
