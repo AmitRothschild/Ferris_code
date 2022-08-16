@@ -209,14 +209,14 @@ def location_to_magnetic_field(stage_location):
     """
     converts the stage location to magnetic field
     the fit is two exponents: a*exp(b*x) + c*exp(d*x)
-    a = 4119, b = -0.3221, c = 638.8, d = -0.09755
+    a = 21.9, b = -2.928, c = 209, d = -1.179
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    a = 4119
-    b = -0.3221
-    c = 638.8
-    d = -0.09755
+    a = 21.9
+    b = -2.928
+    c = 209
+    d = -1.179
     return a * math.exp(b * stage_location) + c * math.exp(d * stage_location)
 
 
