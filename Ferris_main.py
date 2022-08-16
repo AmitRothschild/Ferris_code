@@ -117,14 +117,14 @@ def init_basic_test_conditions(stage_location, power_source, rf_source, current_
     move_stage(stage_location)
     power_source.set_voltage(1, 12)
     power_source.set_current(1, 0.7)
-    power_source.set_voltage(2, 8) # change to 24 when done
-    power_source.set_current(2, 0.4) # change to 0.6 when done
+    power_source.set_voltage(2, 22) # change to 24 when done
+    power_source.set_current(2, 0.8) # change to 0.6 when done
     power_source.set_voltage(3, 6)
     power_source.set_current(3, 0.1)
     power_source.enable_output(True)
     current_source.set_operation_mode(1)
     current_source.set_voltage(6)
-    time.sleep(50)
+    time.sleep(60)
     rf_source.set_frequency(rf_init_freq)
     rf_source.set_power(rf_power)
     rf_source.enable_output(True)
@@ -209,14 +209,14 @@ def location_to_magnetic_field(stage_location):
     """
     converts the stage location to magnetic field
     the fit is two exponents: a*exp(b*x) + c*exp(d*x)
-    a = 21.9, b = -2.928, c = 209, d = -1.179
+    a = 3672, b = -0.4017, c = 1645, d = -0.1618
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    a = 21.9
-    b = -2.928
-    c = 209
-    d = -1.179
+    a = 3672
+    b = -0.4017
+    c = 1645
+    d = -0.1618
     return a * math.exp(b * stage_location) + c * math.exp(d * stage_location)
 
 
