@@ -230,7 +230,7 @@ def post_run(file_save_location, file_name, measured_data):
     now = datetime.now()
     cur_date = now.strftime("%d_%m_%Y_%H_%M_")
     plt.cla()
-    plt.plot(measured_data[0], measured_data[1])
+    plt.plot(measured_data[0], measured_data[1]) #change back to R - for now it is X (R is iin [1])
     full_name = cur_date+file_name
     fig_full_name = os.path.join(file_save_location, full_name+'.png')
     data_full_name = os.path.join(file_save_location,  full_name+'.txt')
@@ -414,6 +414,8 @@ def main():
                 current_source.enable_output(False)
             else:
                 increment_running_current(current_source, running_cur)
+            # lock_in.auto_phase()
+            time.sleep(3)
             print('start time')
             print(datetime.now().strftime("%H:%M:%S"))
             position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
