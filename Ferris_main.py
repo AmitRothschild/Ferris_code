@@ -310,23 +310,23 @@ def get_input_from_user():
     This function asks the user for the parameters that will be used for this run
     :return: relevant run parameters
     """
-    path = input('Specify save location')
-    rf_power = float(input('Specify rf power in dbm'))
-    init_freq = float(input('Specify initial rf frequency'))
+    path = input('Specify save location ')
+    rf_power = float(input('Specify rf power in dbm '))
+    init_freq = float(input('Specify initial rf frequency '))
     freq_step = float(input('Specify rf frequency steps, if freq step is 0 only a single run will be done regardless '
-                            'of the frequency limit'))
-    freq_lim = float(input('Specify rf frequency limit'))
-    stage_speed = float(input('Specify stage speed'))
-    stage_lim = float(input('Specify stage movement limit'))
-    run_with_applied_current = input('Do you want to run with applied current? (Y for yes / N for no)')
+                            'of the frequency limit '))
+    freq_lim = float(input('Specify rf frequency limit '))
+    stage_speed = float(input('Specify stage speed '))
+    stage_lim = float(input('Specify stage movement limit '))
+    run_with_applied_current = input('Do you want to run with applied current? (Y for yes / N for no) ')
     while run_with_applied_current not in ['Y', 'N']:
-        run_with_applied_current = input('Invalid input, use Y or N only')
+        run_with_applied_current = input('Invalid input, use Y or N only ')
     if run_with_applied_current == 'N':
         init_cur, cur_lim, cur_step = 0, 0, 0
     else:
-        init_cur = float(input('Specify initial current'))
-        cur_lim = float(input('Specify current limit'))
-        cur_step = float(input('Specify current steps'))
+        init_cur = float(input('Specify initial current '))
+        cur_lim = float(input('Specify current limit '))
+        cur_step = float(input('Specify current steps '))
     return path, rf_power, init_freq, freq_lim, freq_step, stage_speed, stage_lim, init_cur, cur_lim, cur_step
 
 
