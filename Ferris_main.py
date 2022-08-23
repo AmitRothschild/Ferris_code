@@ -39,7 +39,7 @@ def pre_test(rf_power, init_freq):
     power_source.enable_output(False)
     current_source = PowerSourceFastMeas(1, 'GPIB2::23::INSTR')
     current_source.enable_output(False)
-    time.sleep(10)
+    time.sleep(15)
     print('started homing')
     with Thorlabs.KinesisMotor("27004822") as stage:
         stage.home(force=True)
