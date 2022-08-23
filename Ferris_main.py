@@ -25,7 +25,7 @@ matplotlib.use('Agg')
 
 
 MM_TO_STEPS_RATIO = 34304
-INIT_LOCATION = 24
+INIT_LOCATION = 20
 
 
 def pre_test(rf_power, init_freq):
