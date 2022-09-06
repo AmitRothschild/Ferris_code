@@ -25,7 +25,7 @@ matplotlib.use('Agg')
 
 
 MM_TO_STEPS_RATIO = 34304
-INIT_LOCATION = 20
+INIT_LOCATION = 24
 
 
 def pre_test(rf_power, init_freq):
@@ -145,8 +145,7 @@ def lock_in_and_stage_data_thread(end_location, lock_in, location, field, r, x, 
     # fieldnames = ["magnetic filed", "R"]
     # with open('temp data.csv', 'w', encoding='UTF8', newline='') as f:
     #     writer = csv.DictWriter(f, fieldnames=fieldnames)
-    print('time started the lock in thread')
-    print(datetime.now().strftime("%H:%M:%S"))
+    print('time started the lock in thread', datetime.now().strftime("%H:%M:%S"))
     with Thorlabs.KinesisMotor("27004822") as stage:
         while stage.get_position() / MM_TO_STEPS_RATIO > end_location:
             lock_in_measurement = lock_in.snap('R', 'X', 'Y', 'Theta')
@@ -207,17 +206,16 @@ def organize_run_parameters(run_parameters):
 
 def location_to_magnetic_field(stage_location):
     """
-    converts the stage location to magnetic field
-    the fit is two exponents: a*exp(b*x) + c*exp(d*x)
-    a = 3672, b = -0.4017, c = 1645, d = -0.1618
+    converts the stage location to magnetic field.
+    exponential fit that was calibrated using the OFMR
+    fit function is a*exp(b*x)
+    a = 4612, b = -0.2136
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    a = 3672
-    b = -0.4017
-    c = 1645
-    d = -0.1618
-    return a * math.exp(b * stage_location) + c * math.exp(d * stage_location)
+    a = 4612
+    b = -0.2136
+    return a * math.exp(b * stage_location)
 
 
 def post_run(file_save_location, file_name, measured_data):
@@ -230,7 +228,7 @@ def post_run(file_save_location, file_name, measured_data):
     now = datetime.now()
     cur_date = now.strftime("%d_%m_%Y_%H_%M_")
     plt.cla()
-    plt.plot(measured_data[0], measured_data[1]) #change back to R - for now it is X (R is iin [1])
+    plt.plot(measured_data[0], measured_data[1])
     full_name = cur_date+file_name
     fig_full_name = os.path.join(file_save_location, full_name+'.png')
     data_full_name = os.path.join(file_save_location,  full_name+'.txt')
@@ -270,17 +268,25 @@ def meas_v_and_a(power_source, v_lst, cur_lst, stop):
     """
     init_res = 0
     notice = False
+    reached_limit = False
     while True:
         v_lst.append(power_source.get_voltage())
         cur_lst.append(power_source.get_current())
+        if power_source.get_voltage() > 5.9 and not reached_limit:
+            print('!!!!!!!!!!!!!!!!!!!!!!')
+            print('!!! Voltage Limit !!!!')
+            print('!!!!!!!!!!!!!!!!!!!!!!')
+            reached_limit = True
         if len(v_lst) == 1:
             init_res = v_lst[0]/cur_lst[0]
+            print('initial resistance is ', init_res)
         cur_res = v_lst[-1]/cur_lst[-1]
         if cur_res > 1.1*init_res and not notice:
             notice = True
             print('!!! Please note that resistance increased by 10% !!!')
         if stop():
-            print('!!!done!!!')
+            print('final resistance is', cur_res)
+            print('ratio (initial resistance/ final resistance) is ', init_res/cur_res)
             break
 
 
@@ -414,10 +420,9 @@ def main():
                 current_source.enable_output(False)
             else:
                 increment_running_current(current_source, running_cur)
-            # lock_in.auto_phase()
-            time.sleep(3)
-            print('start time')
-            print(datetime.now().strftime("%H:%M:%S"))
+            lock_in.auto_phase()
+            time.sleep(5)
+            print('start time', datetime.now().strftime("%H:%M:%S"))
             position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
             lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
                                                        args=[stage_limit, lock_in, position_lst, mag_field_lst, r_lst,
@@ -431,16 +436,14 @@ def main():
             if running_cur != 0:
                 voltage_current_meas_thread.start()
             lock_in_and_magnetic_field_thread.join()
-            print('time joined the lock in thread')
-            print(datetime.now().strftime("%H:%M:%S"))
+            print('time joined the lock in thread', datetime.now().strftime("%H:%M:%S"))
             if not lock_in_and_magnetic_field_thread.is_alive():
                 stop_threads = True
             if voltage_current_meas_thread.is_alive():
                 voltage_current_meas_thread.join()
             current_source.enable_output(False)
             post_run(file_save_location, file_name, [mag_field_lst, r_lst, x_lst, y_lst, theta_lst, position_lst])
-            print('end time')
-            print(datetime.now().strftime("%H:%M:%S"))
+            print('end time', datetime.now().strftime("%H:%M:%S"))
             if run_with_cur:
                 running_cur, polarity = prepare_for_next_iteration(running_cur, current_source, cur_step,
                                                                    polarity)
