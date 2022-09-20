@@ -39,7 +39,7 @@ def pre_test(rf_power, init_freq):
     power_source.enable_output(False)
     current_source = PowerSourceFastMeas(1, 'GPIB2::23::INSTR')
     current_source.enable_output(False)
-    time.sleep(10)
+    time.sleep(20)
     print('started homing')
     with Thorlabs.KinesisMotor("27004822") as stage:
         stage.home(force=True)
@@ -253,8 +253,11 @@ def set_next_iter_setting(option, device, step, stage_location):
         device.set_frequency(device.get_frequency() + step)
     elif option == 2:
         device.set_current(-device.get_current() + step)
+        device.set_voltage(-6)
     else:
         device.set_current(abs(device.get_current()) + step)
+        device.set_voltage(6)
+
 
 
 def meas_v_and_a(power_source, v_lst, cur_lst, stop):
@@ -421,7 +424,7 @@ def main():
             else:
                 increment_running_current(current_source, running_cur)
             lock_in.auto_phase()
-            time.sleep(5)
+            time.sleep(8)
             print('start time', datetime.now().strftime("%H:%M:%S"))
             position_lst, mag_field_lst, r_lst, x_lst, y_lst, theta_lst, v_lst, cur_lst = [], [], [], [], [], [], [], []
             lock_in_and_magnetic_field_thread = Thread(target=lock_in_and_stage_data_thread,
