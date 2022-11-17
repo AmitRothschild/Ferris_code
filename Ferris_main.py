@@ -187,6 +187,7 @@ def get_stage_pos():
 
 def organize_run_parameters(run_parameters):
     """
+    time constant init: 300msec
     split the input parameters into the relevant values
     :param run_parameters: list of input parameters
     :return: organized input parameters
