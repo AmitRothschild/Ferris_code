@@ -214,8 +214,8 @@ def location_to_magnetic_field(stage_location):
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    a = 4612
-    b = -0.2136
+    a = 4883
+    b = -0.243
     return a * math.exp(b * stage_location)
 
 
