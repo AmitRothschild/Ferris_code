@@ -207,15 +207,16 @@ def organize_run_parameters(run_parameters):
 
 def location_to_magnetic_field(stage_location):
     """
+    last calibration date: 14/02/2023
     converts the stage location to magnetic field.
     exponential fit that was calibrated using the OFMR
     fit function is a*exp(b*x)
-    a = 4612, b = -0.2136
+    a = 4712, b = -0.2026
     :param stage_location: stage location in mm
     :return: magnetic field in Oe
     """
-    a = 4612
-    b = -0.2136
+    a = 4712
+    b = -0.2026
     return a * math.exp(b * stage_location)
 
 
